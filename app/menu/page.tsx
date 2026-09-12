@@ -11,6 +11,7 @@ import {
   CheckCircle,
   XCircle,
   Utensils,
+  Sparkles,
 } from "lucide-react";
 import { formatINR } from "@/lib/gst";
 import { FssaiDotBadge, CulinaryTags } from "@/components/DietaryBadge";
@@ -49,6 +50,7 @@ export default function MenuManagementPage() {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isSeeding, setIsSeeding] = useState<boolean>(false);
 
   // Form State
   const [formName, setFormName] = useState("");
@@ -75,6 +77,23 @@ export default function MenuManagementPage() {
       console.error("Failed to load menu:", err);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleSeedDatabase() {
+    setIsSeeding(true);
+    try {
+      const res = await fetch("/api/seed");
+      const json = await res.json();
+      if (json.success) {
+        await fetchMenu();
+      } else {
+        alert(json.error || "Failed to seed menu. Make sure database tables are pushed.");
+      }
+    } catch (err: any) {
+      alert("Error seeding menu: " + err.message);
+    } finally {
+      setIsSeeding(false);
     }
   }
 
@@ -279,9 +298,28 @@ export default function MenuManagementPage() {
       {/* Dishes Cards Grid — SLEEK TEXT-FIRST LAYOUT */}
       <div className="mx-auto max-w-7xl w-full p-4 sm:p-8">
         {filteredItems.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-center text-slate-400">
-            <Utensils className="h-12 w-12 text-slate-300 mb-2" />
-            <p className="text-sm font-semibold text-slate-700">No menu items found.</p>
+          <div className="flex flex-col items-center justify-center p-12 text-center rounded-3xl bg-white border border-dashed border-slate-300 shadow-2xs max-w-md mx-auto my-12">
+            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 mb-3.5">
+              <Utensils className="h-8 w-8" />
+            </div>
+            <h3 className="text-base font-black text-slate-900 mb-1">
+              {categories.length === 0 ? "Your Menu is Empty" : "No Dishes Found"}
+            </h3>
+            <p className="text-xs text-slate-500 max-w-xs mb-5 leading-relaxed">
+              {categories.length === 0
+                ? "Your database is connected, but dishes haven't been seeded yet. Click below to load the authentic Kerala menu."
+                : "No dishes matched your current search and dietary filter."}
+            </p>
+            {categories.length === 0 && (
+              <button
+                onClick={handleSeedDatabase}
+                disabled={isSeeding}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-black shadow-xs transition-all disabled:opacity-50"
+              >
+                <Sparkles className="h-4 w-4" />
+                <span>{isSeeding ? "Seeding Menu..." : "Seed 24 Kerala Dishes"}</span>
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

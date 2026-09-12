@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { kdsEvents } from "@/lib/kds-events";
+import { seedDatabase } from "@/lib/seed-data";
 
 // GET /api/menu - Get all categories and menu items
 export async function GET(req: NextRequest) {
@@ -9,7 +10,7 @@ export async function GET(req: NextRequest) {
     const categoryId = searchParams.get("categoryId");
     const search = searchParams.get("search");
 
-    const categories = await db.category.findMany({
+    let categories = await db.category.findMany({
       orderBy: { sortOrder: "asc" },
       include: {
         items: {
@@ -28,6 +29,21 @@ export async function GET(req: NextRequest) {
         },
       },
     });
+
+    // Automatically seed menu if database is freshly connected and empty
+    if (categories.length === 0 && !categoryId && !search) {
+      try {
+        await seedDatabase();
+        categories = await db.category.findMany({
+          orderBy: { sortOrder: "asc" },
+          include: {
+            items: { orderBy: { name: "asc" } },
+          },
+        });
+      } catch (seedErr) {
+        console.warn("Auto-seed skipped or tables not created yet:", seedErr);
+      }
+    }
 
     return NextResponse.json({ success: true, data: categories });
   } catch (error) {

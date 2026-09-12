@@ -4,11 +4,12 @@ const { execSync } = require('child_process');
 
 const dbUrl = process.env.DATABASE_URL || '';
 const schemaPath = path.join(__dirname, 'schema.prisma');
+const isPostgres = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
 
 try {
   if (fs.existsSync(schemaPath)) {
     let content = fs.readFileSync(schemaPath, 'utf8');
-    if (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://')) {
+    if (isPostgres) {
       console.log('🔄 Detected PostgreSQL DATABASE_URL. Adjusting Prisma provider to postgresql...');
       content = content.replace(/provider\s*=\s*"sqlite"/g, 'provider = "postgresql"');
       fs.writeFileSync(schemaPath, content, 'utf8');
@@ -18,6 +19,16 @@ try {
         content = content.replace(/provider\s*=\s*"postgresql"/g, 'provider = "sqlite"');
         fs.writeFileSync(schemaPath, content, 'utf8');
       }
+    }
+  }
+
+  // Automatically create/sync tables in cloud PostgreSQL on Vercel
+  if (isPostgres && (process.env.VERCEL || process.env.CI)) {
+    try {
+      console.log('🚀 Syncing PostgreSQL schema tables via prisma db push...');
+      execSync('npx prisma db push --accept-data-loss', { stdio: 'inherit' });
+    } catch (pushErr) {
+      console.warn('⚠️ prisma db push notice:', pushErr.message);
     }
   }
 
