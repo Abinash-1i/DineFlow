@@ -371,7 +371,7 @@ async function main() {
 
   const createdMenuItems: Record<string, any> = {};
   for (const item of menuData) {
-    const created = await prisma.menuItem.create({ data: item });
+    const created = await prisma.menuItem.create({ data: item as any });
     createdMenuItems[item.name] = created;
   }
   console.log(`✅ Seeded ${menuData.length} authentic Kerala & Indian menu items with high-res photography`);
@@ -479,11 +479,11 @@ async function main() {
           discountAmount: 0,
           finalAmount,
           paymentStatus: "PAID",
-          paymentMethod: pMethod,
+          paymentMethod: pMethod as any,
           createdAt: orderDate,
           updatedAt: orderDate,
           items: {
-            create: orderItemsData,
+            create: orderItemsData as any,
           },
         },
       });
@@ -496,7 +496,7 @@ async function main() {
           cgst: Math.round(taxAmount / 2 * 100) / 100,
           sgst: Math.round(taxAmount / 2 * 100) / 100,
           totalAmount: finalAmount,
-          paymentMethod: pMethod,
+          paymentMethod: pMethod as any,
           customerName: ["Rahul Kurup", "Fathima Zahra", "Vineeth Nair", "Lakshmi Pillai", "Mathew Thomas"][orderSeq % 5],
           createdAt: orderDate,
         },

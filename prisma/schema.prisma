@@ -1,20 +1,81 @@
+// PostgreSQL / Supabase / Neon Production Schema for DineFlow
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  ADMIN
+  CASHIER
+  KITCHEN_STAFF
+}
+
+enum SpiceLevel {
+  MILD
+  MEDIUM
+  SPICY
+  VERY_SPICY
+}
+
+enum DietaryTag {
+  VEG
+  NON_VEG
+  VEGAN
+}
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+  BILLING
+}
+
+enum OrderType {
+  DINE_IN
+  TAKEAWAY
+}
+
+enum OrderStatus {
+  PENDING
+  SENT_TO_KITCHEN
+  PREPARING
+  READY
+  SERVED
+  BILLED
+  CANCELLED
+}
+
+enum OrderItemStatus {
+  PENDING
+  PREPARING
+  READY
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+  CARD
+  SPLIT
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
+}
+
 model User {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   name      String
-  email     String   @unique
-  role      String   @default("CASHIER") // ADMIN, CASHIER, KITCHEN_STAFF
-  pin       String   @default("1234")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  email     String    @unique
+  role      UserRole  @default(CASHIER)
+  pin       String    @default("1234")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   orders    Order[]
 }
 
@@ -33,11 +94,11 @@ model MenuItem {
   id              String      @id @default(uuid())
   name            String
   description     String
-  price           Float       // INR (₹)
+  price           Float
   categoryId      String
   category        Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  spiceLevel      String      @default("MEDIUM") // MILD, MEDIUM, SPICY, VERY_SPICY
-  dietaryTag      String      @default("NON_VEG") // VEG, NON_VEG, VEGAN
+  spiceLevel      SpiceLevel  @default(MEDIUM)
+  dietaryTag      DietaryTag  @default(NON_VEG)
   prepTimeMinutes Int         @default(15)
   isAvailable     Boolean     @default(true)
   imageUrl        String
@@ -50,35 +111,35 @@ model MenuItem {
 }
 
 model Table {
-  id             String   @id @default(uuid())
-  number         Int      @unique
-  name           String   // e.g. "Table 1", "Takeaway 1"
-  capacity       Int      @default(4)
-  status         String   @default("AVAILABLE") // AVAILABLE, OCCUPIED, RESERVED, BILLING
+  id             String      @id @default(uuid())
+  number         Int         @unique
+  name           String
+  capacity       Int         @default(4)
+  status         TableStatus @default(AVAILABLE)
   currentOrderId String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
   orders         Order[]
 }
 
 model Order {
-  id             String      @id @default(uuid())
-  orderNumber    String      @unique // e.g. DF-1001
-  orderType      String      @default("DINE_IN") // DINE_IN, TAKEAWAY
-  status         String      @default("PENDING") // PENDING, SENT_TO_KITCHEN, PREPARING, READY, SERVED, BILLED, CANCELLED
+  id             String        @id @default(uuid())
+  orderNumber    String        @unique
+  orderType      OrderType     @default(DINE_IN)
+  status         OrderStatus   @default(PENDING)
   tableId        String?
-  table          Table?      @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  table          Table?        @relation(fields: [tableId], references: [id], onDelete: SetNull)
   userId         String?
-  user           User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
-  subtotal       Float       @default(0.0)
-  taxAmount      Float       @default(0.0) // 5% total (2.5% CGST + 2.5% SGST)
-  discountAmount Float       @default(0.0)
-  finalAmount    Float       @default(0.0)
-  paymentStatus  String      @default("PENDING") // PENDING, PAID, REFUNDED
-  paymentMethod  String?     // CASH, UPI, CARD, SPLIT
+  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  subtotal       Float         @default(0.0)
+  taxAmount      Float         @default(0.0)
+  discountAmount Float         @default(0.0)
+  finalAmount    Float         @default(0.0)
+  paymentStatus  PaymentStatus @default(PENDING)
+  paymentMethod  PaymentMethod?
   specialNotes   String?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
   items          OrderItem[]
   invoice        Invoice?
 
@@ -88,36 +149,36 @@ model Order {
 }
 
 model OrderItem {
-  id              String   @id @default(uuid())
+  id              String          @id @default(uuid())
   orderId         String
-  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order           Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
   menuItemId      String
-  menuItem        MenuItem @relation(fields: [menuItemId], references: [id])
-  quantity        Int      @default(1)
+  menuItem        MenuItem        @relation(fields: [menuItemId], references: [id])
+  quantity        Int             @default(1)
   unitPrice       Float
-  spicePreference String?  // MILD, MEDIUM, SPICY, VERY_SPICY
-  notes           String?  // e.g. "extra gravy", "less oil"
-  status          String   @default("PENDING") // PENDING, PREPARING, READY
-  createdAt       DateTime @default(now())
+  spicePreference SpiceLevel?
+  notes           String?
+  status          OrderItemStatus @default(PENDING)
+  createdAt       DateTime        @default(now())
 
   @@index([orderId])
   @@index([menuItemId])
 }
 
 model Invoice {
-  id            String   @id @default(uuid())
-  invoiceNumber String   @unique // e.g. INV-2026-001
-  orderId       String   @unique
-  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id            String        @id @default(uuid())
+  invoiceNumber String        @unique
+  orderId       String        @unique
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
   subtotal      Float
-  cgst          Float    // 2.5% CGST
-  sgst          Float    // 2.5% SGST
+  cgst          Float
+  sgst          Float
   totalAmount   Float
-  paymentMethod String   // CASH, UPI, CARD, SPLIT
-  splitDetails  String?  // JSON string storing split breakdown if applicable
-  customerName  String?  @default("Guest")
+  paymentMethod PaymentMethod
+  splitDetails  String?
+  customerName  String?       @default("Guest")
   customerPhone String?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime      @default(now())
 
   @@index([invoiceNumber])
   @@index([createdAt])

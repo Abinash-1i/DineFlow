@@ -2,6 +2,29 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
+// 1. Load local .env if present
+const envPath = path.join(__dirname, '..', '.env');
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, 'utf8');
+  for (const line of envContent.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith('#')) {
+      const match = trimmed.match(/^([A-Za-z0-9_]+)=(.*)$/);
+      if (match) {
+        const key = match[1].trim();
+        let val = match[2].trim();
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.slice(1, -1);
+        }
+        if (!process.env[key]) {
+          process.env[key] = val;
+        }
+      }
+    }
+  }
+}
+
+// 2. Resolve database URL aliases
 const dbUrl =
   process.env.DATABASE_URL ||
   process.env.DB_DATABASE_URL ||
@@ -17,24 +40,27 @@ if (!process.env.DATABASE_URL && dbUrl) {
 
 const schemaPath = path.join(__dirname, 'schema.prisma');
 const isPostgres = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
+const isSqlite = dbUrl.startsWith('file:');
 
 try {
   if (fs.existsSync(schemaPath)) {
     let content = fs.readFileSync(schemaPath, 'utf8');
-    if (isPostgres) {
-      console.log('🔄 Detected PostgreSQL DATABASE_URL. Adjusting Prisma provider to postgresql...');
-      content = content.replace(/provider\s*=\s*"sqlite"/g, 'provider = "postgresql"');
-      fs.writeFileSync(schemaPath, content, 'utf8');
-    } else if (dbUrl.startsWith('file:') || !dbUrl) {
+    if (isPostgres || !dbUrl) {
+      if (content.includes('provider = "sqlite"')) {
+        console.log('🔄 Adjusting Prisma provider to postgresql...');
+        content = content.replace(/provider\s*=\s*"sqlite"/g, 'provider = "postgresql"');
+        fs.writeFileSync(schemaPath, content, 'utf8');
+      }
+    } else if (isSqlite) {
       if (content.includes('provider = "postgresql"')) {
-        console.log('📦 Detected SQLite DATABASE_URL. Adjusting Prisma provider to sqlite...');
+        console.log('📦 Adjusting Prisma provider to sqlite...');
         content = content.replace(/provider\s*=\s*"postgresql"/g, 'provider = "sqlite"');
         fs.writeFileSync(schemaPath, content, 'utf8');
       }
     }
   }
 
-  // Automatically create/sync tables in cloud PostgreSQL on Vercel
+  // 3. Automatically create/sync tables in cloud PostgreSQL on Vercel
   if (isPostgres && (process.env.VERCEL || process.env.CI)) {
     try {
       console.log('🚀 Syncing PostgreSQL schema tables via prisma db push...');
@@ -44,14 +70,14 @@ try {
     }
   }
 
-  // Generate Prisma Client
+  // 4. Generate Prisma Client
   try {
     execSync('npx prisma generate', { stdio: 'inherit' });
   } catch (genErr) {
     if (process.env.VERCEL || process.env.CI) {
       throw genErr;
     } else {
-      console.warn('⚠️ Local prisma generate skipped (file lock from active dev server). Continuing build...');
+      console.warn('⚠️ Local prisma generate notice:', genErr.message);
     }
   }
 } catch (err) {

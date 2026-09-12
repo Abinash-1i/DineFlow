@@ -19,7 +19,7 @@ export async function seedDatabase(customPrisma?: any) {
     create: {
       name: "Sujith Nair (Manager)",
       email: "admin@dineflow.com",
-      role: "ADMIN",
+      role: "ADMIN" as any,
       pin: "9999",
     },
   });
@@ -30,7 +30,7 @@ export async function seedDatabase(customPrisma?: any) {
     create: {
       name: "Anjali Menon (Cashier)",
       email: "cashier@dineflow.com",
-      role: "CASHIER",
+      role: "CASHIER" as any,
       pin: "1111",
     },
   });
@@ -41,7 +41,7 @@ export async function seedDatabase(customPrisma?: any) {
     create: {
       name: "Chef Moideen (Head Chef)",
       email: "chef@dineflow.com",
-      role: "KITCHEN_STAFF",
+      role: "KITCHEN_STAFF" as any,
       pin: "2222",
     },
   });
@@ -346,7 +346,7 @@ export async function seedDatabase(customPrisma?: any) {
   ];
 
   for (const item of dishes) {
-    await prisma.menuItem.create({ data: item });
+    await prisma.menuItem.create({ data: item as any });
   }
 
   // 4. Seed 14 Restaurant Tables
@@ -356,7 +356,7 @@ export async function seedDatabase(customPrisma?: any) {
         number: i,
         name: `Table ${i}`,
         capacity: i % 3 === 0 ? 6 : i % 2 === 0 ? 4 : 2,
-        status: i === 3 || i === 5 ? "OCCUPIED" : i === 8 ? "BILLING" : "AVAILABLE",
+        status: (i === 3 || i === 5 ? "OCCUPIED" : i === 8 ? "BILLING" : "AVAILABLE") as any,
       },
     });
   }
@@ -366,7 +366,7 @@ export async function seedDatabase(customPrisma?: any) {
       number: 91,
       name: "Takeaway Express 1",
       capacity: 1,
-      status: "OCCUPIED",
+      status: "OCCUPIED" as any,
     },
   });
 
@@ -375,7 +375,7 @@ export async function seedDatabase(customPrisma?: any) {
       number: 92,
       name: "Takeaway Express 2",
       capacity: 1,
-      status: "AVAILABLE",
+      status: "AVAILABLE" as any,
     },
   });
 
