@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node prisma/prepare.js && next build",
     "start": "next start",
     "lint": "eslint",
-    "seed": "prisma db push && tsx prisma/seed.ts"
+    "seed": "prisma db push && tsx prisma/seed.ts",
+    "postinstall": "node prisma/prepare.js"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
